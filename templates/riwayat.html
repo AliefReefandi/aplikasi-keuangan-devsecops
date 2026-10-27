@@ -1,0 +1,45 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Transaksi</title>
+</head>
+<body>
+
+    <h1>Riwayat Transaksi</h1>
+
+    <a href="/transaksi">+ Tambah Transaksi</a>
+
+    <br><br>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Jenis</th>
+                <th>Nominal</th>
+                <th>Kategori</th>
+                <th>Deskripsi</th>
+                <th>Tanggal</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for transaksi in transaksi_list %}
+            <tr>
+                <td>{{ transaksi.id }}</td>
+                <td>{{ transaksi.jenis }}</td>
+                <td>Rp {{ "{:,.0f}".format(transaksi.nominal).replace(",", ".") }}</td>
+                <td>{{ transaksi.kategori }}</td>
+                <td>{{ transaksi.deskripsi }}</td>
+                <td>{{ transaksi.tanggal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>
+```

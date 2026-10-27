@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Transaksi</title>
+</head>
+<body>
+
+    <h1>Kelola Transaksi</h1>
+
+    <form method="POST" onsubmit="formatNominalSebelumSubmit()">
+
+        <label for="jenis">Jenis Transaksi:</label>
+        <select name="jenis" id="jenis" required>
+            <option value="">-- Pilih Jenis --</option>
+            <option value="pemasukan">Pemasukan</option>
+            <option value="pengeluaran">Pengeluaran</option>
+        </select>
+
+        <br><br>
+
+        <label for="nominal">Nominal:</label>
+        <input
+            type="text"
+            name="nominal"
+            id="nominal"
+            inputmode="numeric"
+            placeholder="Contoh: 1.000.000"
+            required
+        >
+
+        <br><br>
+
+        <label for="kategori">Kategori:</label>
+        <input type="text" name="kategori" id="kategori" required>
+
+        <br><br>
+
+        <label for="deskripsi">Deskripsi:</label>
+        <textarea name="deskripsi" id="deskripsi"></textarea>
+
+        <br><br>
+
+        <label for="tanggal">Tanggal:</label>
+        <input type="date" name="tanggal" id="tanggal" required>
+
+        <br><br>
+
+        <button type="submit">Simpan Transaksi</button>
+
+    </form>
+
+    <script>
+        const nominalInput = document.getElementById("nominal");
+
+        nominalInput.addEventListener("input", function () {
+            let angka = this.value.replace(/\D/g, "");
+
+            if (angka === "") {
+                this.value = "";
+                return;
+            }
+
+            this.value = Number(angka).toLocaleString("id-ID");
+        });
+
+        function formatNominalSebelumSubmit() {
+            nominalInput.value = nominalInput.value.replace(/\./g, "");
+        }
+    </script>
+
+</body>
+</html>

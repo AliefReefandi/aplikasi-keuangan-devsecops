@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Keuangan</title>
+</head>
+<body>
+
+    <h1>Dashboard Keuangan</h1>
+
+    <h2>Total Pemasukan</h2>
+    <p>Rp {{ "{:,.0f}".format(total_pemasukan).replace(",", ".") }}</p>
+
+    <h2>Total Pengeluaran</h2>
+    <p>Rp {{ "{:,.0f}".format(total_pengeluaran).replace(",", ".") }}</p>
+
+    <h2>Saldo</h2>
+    <p>Rp {{ "{:,.0f}".format(saldo).replace(",", ".") }}</p>
+
+    <br>
+
+    <a href="/transaksi">+ Tambah Transaksi</a>
+    <br><br>
+    <a href="/riwayat">Lihat Riwayat Transaksi</a>
+
+</body>
+</html>

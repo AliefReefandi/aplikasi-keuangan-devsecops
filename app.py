@@ -1,17 +1,7 @@
-from flask import Flask
-import mysql.connector
+from flask import Flask, render_template, request, redirect, url_for
+from database import get_db_connection
 
 app = Flask(__name__)
-
-
-def get_db_connection():
-    return mysql.connector.connect(
-        host="127.0.0.1",
-        port=3306,
-        user="root",
-        password="root123",
-        database="keuangan"
-    )
 
 
 @app.route("/")
@@ -27,6 +17,92 @@ def test_db():
         return "Koneksi ke database berhasil!"
     except Exception as e:
         return f"Koneksi database gagal: {e}"
+
+
+@app.route("/transaksi", methods=["GET", "POST"])
+def transaksi():
+    if request.method == "POST":
+        jenis = request.form["jenis"]
+        nominal = request.form["nominal"]
+        kategori = request.form["kategori"]
+        deskripsi = request.form["deskripsi"]
+        tanggal = request.form["tanggal"]
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        query = """
+            INSERT INTO transaksi
+            (jenis, nominal, kategori, deskripsi, tanggal)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+
+        values = (
+            jenis,
+            nominal,
+            kategori,
+            deskripsi,
+            tanggal
+        )
+
+        cursor.execute(query, values)
+        connection.commit()
+
+        cursor.close()
+        connection.close()
+
+        return redirect(url_for("transaksi"))
+
+    return render_template("transaksi.html")
+
+
+@app.route("/riwayat")
+def riwayat():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT id, jenis, nominal, kategori, deskripsi, tanggal
+        FROM transaksi
+        ORDER BY tanggal DESC, id DESC
+    """)
+
+    transaksi_list = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    return render_template(
+        "riwayat.html",
+        transaksi_list=transaksi_list
+    )
+
+
+@app.route("/dashboard")
+def dashboard():
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            COALESCE(SUM(CASE WHEN jenis = 'pemasukan' THEN nominal ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN jenis = 'pengeluaran' THEN nominal ELSE 0 END), 0)
+        FROM transaksi
+    """)
+
+    total_pemasukan, total_pengeluaran = cursor.fetchone()
+
+    saldo = total_pemasukan - total_pengeluaran
+
+    cursor.close()
+    connection.close()
+
+    return render_template(
+        "dashboard.html",
+        total_pemasukan=total_pemasukan,
+        total_pengeluaran=total_pengeluaran,
+        saldo=saldo
+    )
 
 
 if __name__ == "__main__":
