@@ -77,6 +77,79 @@ def riwayat():
         transaksi_list=transaksi_list
     )
 
+@app.route("/transaksi/edit/<int:id>", methods=["GET", "POST"])
+def edit_transaksi(id):
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    if request.method == "POST":
+        jenis = request.form["jenis"]
+        nominal = request.form["nominal"]
+        kategori = request.form["kategori"]
+        deskripsi = request.form["deskripsi"]
+        tanggal = request.form["tanggal"]
+
+        query = """
+            UPDATE transaksi
+            SET jenis = %s,
+                nominal = %s,
+                kategori = %s,
+                deskripsi = %s,
+                tanggal = %s
+            WHERE id = %s
+        """
+
+        values = (
+            jenis,
+            nominal,
+            kategori,
+            deskripsi,
+            tanggal,
+            id
+        )
+
+        cursor.execute(query, values)
+        connection.commit()
+
+        cursor.close()
+        connection.close()
+
+        return redirect(url_for("riwayat"))
+
+    cursor.execute("""
+        SELECT id, jenis, nominal, kategori, deskripsi, tanggal
+        FROM transaksi
+        WHERE id = %s
+    """, (id,))
+
+    transaksi = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    return render_template(
+        "edit_transaksi.html",
+        transaksi=transaksi
+    )
+
+
+@app.route("/transaksi/hapus/<int:id>", methods=["POST"])
+def hapus_transaksi(id):
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        "DELETE FROM transaksi WHERE id = %s",
+        (id,)
+    )
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+    return redirect(url_for("riwayat"))
+
 
 @app.route("/dashboard")
 def dashboard():
