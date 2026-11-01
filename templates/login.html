@@ -1,0 +1,36 @@
+{% extends "_auth_layout.html" %}
+{% from "_macros.html" import daftar_error %}
+
+{% block title %}Login{% endblock %}
+
+{% block auth_content %}
+<h2>Masuk ke akun Anda</h2>
+<p class="muted">Selamat datang kembali! Silakan masukkan data akun Anda.</p>
+
+{{ daftar_error(errors) }}
+
+<form method="POST" class="form" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="field">
+        <label for="username">Username</label>
+        <input type="text" name="username" id="username" value="{{ username or '' }}"
+               autocomplete="username" maxlength="30" required autofocus>
+    </div>
+
+    <div class="field">
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+            <input type="password" name="password" id="password"
+                   autocomplete="current-password" maxlength="128" required>
+            <button type="button" class="password-toggle" data-toggle-password="password">Lihat</button>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block">Masuk</button>
+</form>
+
+<p class="auth-switch">
+    Belum punya akun? <a href="{{ url_for('register') }}">Daftar sekarang</a>
+</p>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block body %}
+<main class="auth-wrapper">
+    <section class="auth-hero">
+        <div class="auth-hero-content">
+            <div class="brand brand-light">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" class="brand-logo">
+                CatatUang
+            </div>
+            <h1>Kelola keuangan pribadi dengan lebih tenang.</h1>
+            <p>Catat pemasukan dan pengeluaran, pantau saldo, dan lihat riwayat transaksi Anda di satu tempat.</p>
+            <ul class="auth-features">
+                <li>Ringkasan saldo secara real-time</li>
+                <li>Riwayat transaksi yang rapi</li>
+                <li>Data aman dan hanya bisa diakses oleh Anda</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="auth-panel">
+        <div class="auth-card">
+            {% block auth_content %}{% endblock %}
+        </div>
+    </section>
+</main>
+{% endblock %}

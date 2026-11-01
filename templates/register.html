@@ -1,0 +1,48 @@
+{% extends "_auth_layout.html" %}
+{% from "_macros.html" import daftar_error %}
+
+{% block title %}Daftar Akun{% endblock %}
+
+{% block auth_content %}
+<h2>Buat akun baru</h2>
+<p class="muted">Daftar gratis dan mulai catat keuangan Anda.</p>
+
+{{ daftar_error(errors) }}
+
+<form method="POST" class="form" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="field">
+        <label for="username">Username</label>
+        <input type="text" name="username" id="username" value="{{ username or '' }}"
+               autocomplete="username" minlength="3" maxlength="30"
+               pattern="[A-Za-z0-9_]{3,30}" required autofocus>
+        <small class="hint">3–30 karakter: huruf, angka, atau garis bawah (_).</small>
+    </div>
+
+    <div class="field">
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+            <input type="password" name="password" id="password"
+                   autocomplete="new-password" minlength="8" maxlength="128" required>
+            <button type="button" class="password-toggle" data-toggle-password="password">Lihat</button>
+        </div>
+        <small class="hint">Minimal 8 karakter, berisi huruf dan angka.</small>
+    </div>
+
+    <div class="field">
+        <label for="konfirmasi_password">Konfirmasi Password</label>
+        <div class="password-wrapper">
+            <input type="password" name="konfirmasi_password" id="konfirmasi_password"
+                   autocomplete="new-password" maxlength="128" required>
+            <button type="button" class="password-toggle" data-toggle-password="konfirmasi_password">Lihat</button>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block">Daftar</button>
+</form>
+
+<p class="auth-switch">
+    Sudah punya akun? <a href="{{ url_for('login') }}">Masuk di sini</a>
+</p>
+{% endblock %}

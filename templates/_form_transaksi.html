@@ -1,0 +1,68 @@
+{# Dipakai bersama oleh halaman tambah dan edit transaksi. #}
+<form method="POST" class="form" novalidate
+      data-saldo-form
+      data-saldo-awal="{{ saldo_awal | int }}"
+      data-saldo-dasar="{{ saldo_dasar | int }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="field">
+        <span class="label">Jenis Transaksi</span>
+        <div class="segmented">
+            <label class="segment segment-pemasukan">
+                <input type="radio" name="jenis" value="pemasukan"
+                       {% if form.get("jenis") == "pemasukan" %}checked{% endif %} required>
+                <span>&#8595; Pemasukan</span>
+            </label>
+            <label class="segment segment-pengeluaran">
+                <input type="radio" name="jenis" value="pengeluaran"
+                       {% if form.get("jenis") == "pengeluaran" %}checked{% endif %}>
+                <span>&#8593; Pengeluaran</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="field">
+        <label for="nominal">Nominal</label>
+        <div class="input-prefix">
+            <span>Rp</span>
+            <input type="text" name="nominal" id="nominal" inputmode="numeric"
+                   placeholder="Contoh: 1.000.000" value="{{ form.get('nominal', '') }}"
+                   maxlength="15" autocomplete="off" data-rupiah required>
+        </div>
+        <small class="hint">Saldo tersedia: <strong>{{ saldo_dasar | rupiah }}</strong></small>
+        <div class="alert alert-warning alert-inline" data-saldo-warning hidden>
+            Nominal melebihi saldo yang tersedia. Transaksi ini akan ditolak.
+        </div>
+    </div>
+
+    <div class="field">
+        <label for="kategori">Kategori</label>
+        <input type="text" name="kategori" id="kategori" maxlength="100"
+               value="{{ form.get('kategori', '') }}" placeholder="Pilih atau ketik kategori"
+               autocomplete="off" required>
+        {% for jenis, daftar in kategori_saran.items() %}
+        <datalist id="kategori-{{ jenis }}">
+            {% for kategori in daftar %}
+            <option value="{{ kategori }}">
+            {% endfor %}
+        </datalist>
+        {% endfor %}
+    </div>
+
+    <div class="field">
+        <label for="deskripsi">Deskripsi <span class="optional">(opsional)</span></label>
+        <textarea name="deskripsi" id="deskripsi" rows="3" maxlength="500"
+                  placeholder="Contoh: Makan siang bersama teman">{{ form.get('deskripsi', '') }}</textarea>
+    </div>
+
+    <div class="field">
+        <label for="tanggal">Tanggal</label>
+        <input type="date" name="tanggal" id="tanggal" max="{{ hari_ini }}"
+               value="{{ form.get('tanggal', '') }}" required>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ tombol_simpan }}</button>
+        <a href="{{ url_batal }}" class="btn btn-ghost">Batal</a>
+    </div>
+</form>

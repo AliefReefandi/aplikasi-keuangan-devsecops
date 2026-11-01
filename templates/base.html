@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %} · CatatUang</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+    {% if session.user_id %}
+    <header class="navbar">
+        <div class="container navbar-inner">
+            <a href="{{ url_for('dashboard') }}" class="brand">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" class="brand-logo">
+                CatatUang
+            </a>
+
+            <nav class="nav-links">
+                <a href="{{ url_for('dashboard') }}"
+                   class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('transaksi') }}"
+                   class="{% if request.endpoint == 'transaksi' %}active{% endif %}">Tambah Transaksi</a>
+                <a href="{{ url_for('riwayat') }}"
+                   class="{% if request.endpoint in ('riwayat', 'edit_transaksi') %}active{% endif %}">Riwayat</a>
+            </nav>
+
+            <div class="nav-user">
+                <span class="avatar">{{ session.username[0] | upper }}</span>
+                <span class="nav-username">{{ session.username }}</span>
+                <form method="POST" action="{{ url_for('logout') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-ghost btn-sm">Keluar</button>
+                </form>
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    <div class="toast-container" aria-live="polite">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="toast toast-{{ category }}" role="status">
+                <span class="toast-icon">
+                    {% if category == "success" %}&#10003;{% elif category == "error" %}&#10005;{% else %}!{% endif %}
+                </span>
+                <span class="toast-message">{{ message }}</span>
+                <button type="button" class="toast-close" aria-label="Tutup">&times;</button>
+            </div>
+            {% endfor %}
+        {% endwith %}
+    </div>
+
+    {% block body %}
+    <main class="container page">
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+</body>
+</html>
