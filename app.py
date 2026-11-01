@@ -1,9 +1,11 @@
+import logging
 import os
 import re
 import secrets
 from contextlib import contextmanager
 from datetime import date, timedelta
 from functools import wraps
+from logging.handlers import RotatingFileHandler
 
 import mysql.connector
 from flask import (
@@ -16,6 +18,8 @@ from flask import (
     session,
     url_for,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import get_db_connection
@@ -34,10 +38,41 @@ app.config.update(
     MAX_CONTENT_LENGTH=16 * 1024,
 )
 
+# Membatasi jumlah request per alamat IP untuk mencegah brute force
+# dan gangguan ketersediaan aplikasi (Threat #6).
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",
+)
+
+# Log keamanan untuk tahap Monitor: login, akses ditolak, perubahan data.
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+security_logger = logging.getLogger("security")
+security_logger.setLevel(logging.INFO)
+if not security_logger.handlers:
+    log_format = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+
+    file_handler = RotatingFileHandler(
+        os.path.join(LOG_DIR, "security.log"),
+        maxBytes=1_000_000,
+        backupCount=5,
+        encoding="utf-8"
+    )
+    file_handler.setFormatter(log_format)
+    security_logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_format)
+    security_logger.addHandler(console_handler)
+
 JENIS_VALID = ("pemasukan", "pengeluaran")
 NOMINAL_MAKS = 999_999_999_999
 USERNAME_PATTERN = re.compile(r"[A-Za-z0-9_]{3,30}")
 NOMINAL_PATTERN = re.compile(r"[0-9]{1,12}")
+KARAKTER_KONTROL = re.compile(r"[\r\n\t]")
 
 KATEGORI_SARAN = {
     "pemasukan": ["Gaji", "Bonus", "Uang Saku", "Penjualan", "Investasi", "Hadiah", "Lainnya"],
@@ -73,6 +108,15 @@ def format_rupiah(nilai):
 
 def format_tanggal(tanggal):
     return f"{tanggal.day} {BULAN[tanggal.month - 1]} {tanggal.year}"
+
+
+def catat_keamanan(event, level=logging.INFO, **detail):
+    info = {"ip": request.remote_addr, "user_id": session.get("user_id"), **detail}
+    # Karakter baris baru dibuang agar input pengguna tidak bisa memalsukan baris log.
+    teks = " ".join(
+        f"{kunci}={KARAKTER_KONTROL.sub('_', str(nilai))}" for kunci, nilai in info.items()
+    )
+    security_logger.log(level, "%s %s", event, teks)
 
 
 app.jinja_env.filters["rupiah"] = format_rupiah
@@ -204,6 +248,7 @@ def cek_csrf():
     token_session = session.get("csrf_token")
     token_form = request.form.get("csrf_token", "")
     if not token_session or not secrets.compare_digest(token_form, token_session):
+        catat_keamanan("CSRF_DITOLAK", logging.WARNING, path=request.path)
         flash("Sesi formulir sudah kedaluwarsa. Silakan coba lagi.", "warning")
         return redirect(url_for("dashboard") if "user_id" in session else url_for("login"))
     return None
@@ -243,6 +288,16 @@ def request_terlalu_besar(error):
     ), 413
 
 
+@app.errorhandler(429)
+def terlalu_banyak_percobaan(error):
+    catat_keamanan("RATE_LIMIT", logging.WARNING, path=request.path)
+    return render_template(
+        "error.html",
+        kode=429,
+        pesan="Terlalu banyak percobaan. Silakan tunggu 1 menit lalu coba lagi."
+    ), 429
+
+
 # ---------------------------------------------------------------------------
 # Autentikasi
 # ---------------------------------------------------------------------------
@@ -255,6 +310,7 @@ def home():
 
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("3 per minute", methods=["POST"])
 def register():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
@@ -288,6 +344,7 @@ def register():
         if errors:
             return render_template("register.html", errors=errors, username=username), 400
 
+        catat_keamanan("REGISTER_BERHASIL", username=username)
         flash("Akun berhasil dibuat. Silakan login.", "success")
         return redirect(url_for("login"))
 
@@ -295,6 +352,7 @@ def register():
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
@@ -314,6 +372,7 @@ def login():
         password_benar = check_password_hash(password_hash, password)
 
         if user is None or not password_benar:
+            catat_keamanan("LOGIN_GAGAL", logging.WARNING, username=username)
             return render_template(
                 "login.html",
                 errors=["Username atau password salah."],
@@ -326,6 +385,7 @@ def login():
         session["user_id"] = user["id"]
         session["username"] = user["username"]
 
+        catat_keamanan("LOGIN_BERHASIL", username=user["username"])
         flash(f"Selamat datang, {user['username']}!", "success")
         return redirect(url_for("dashboard"))
 
@@ -334,6 +394,7 @@ def login():
 
 @app.route("/logout", methods=["POST"])
 def logout():
+    catat_keamanan("LOGOUT")
     session.clear()
     flash("Anda telah keluar.", "success")
     return redirect(url_for("login"))
@@ -422,6 +483,7 @@ def transaksi():
                 )
 
         if errors:
+            catat_keamanan("TRANSAKSI_DITOLAK", logging.WARNING, aksi="tambah", alasan=errors[0])
             return render_form_transaksi(
                 "transaksi.html", request.form, saldo, saldo, errors, status=400
             )
@@ -441,6 +503,9 @@ def transaksi():
         connection.commit()
         transaksi_id = cursor.lastrowid
 
+    catat_keamanan(
+        "TRANSAKSI_DITAMBAH", transaksi_id=transaksi_id, jenis=data["jenis"], nominal=data["nominal"]
+    )
     flash("Transaksi berhasil ditambahkan.", "success")
     return redirect(url_for("riwayat", baru=transaksi_id))
 
@@ -487,6 +552,7 @@ def edit_transaksi(id):
 
         transaksi = ambil_transaksi(cursor, id, user_id)
         if transaksi is None:
+            catat_keamanan("AKSES_TRANSAKSI_DITOLAK", logging.WARNING, aksi="edit", transaksi_id=id)
             abort(404)
 
         saldo = hitung_saldo(cursor, user_id)
@@ -515,6 +581,9 @@ def edit_transaksi(id):
                 )
 
         if errors:
+            catat_keamanan(
+                "TRANSAKSI_DITOLAK", logging.WARNING, aksi="edit", transaksi_id=id, alasan=errors[0]
+            )
             return render_form_transaksi(
                 "edit_transaksi.html", request.form, saldo, saldo_tanpa_transaksi, errors,
                 status=400, transaksi=transaksi
@@ -539,6 +608,7 @@ def edit_transaksi(id):
         ))
         connection.commit()
 
+    catat_keamanan("TRANSAKSI_DIUBAH", transaksi_id=id)
     flash("Transaksi berhasil diperbarui.", "success")
     return redirect(url_for("riwayat", baru=id))
 
@@ -553,11 +623,15 @@ def hapus_transaksi(id):
 
         transaksi = ambil_transaksi(cursor, id, user_id)
         if transaksi is None:
+            catat_keamanan("AKSES_TRANSAKSI_DITOLAK", logging.WARNING, aksi="hapus", transaksi_id=id)
             abort(404)
 
         saldo = hitung_saldo(cursor, user_id)
         saldo_akhir = saldo - efek_saldo(transaksi["jenis"], transaksi["nominal"])
         if saldo_jadi_minus(saldo, saldo_akhir):
+            catat_keamanan(
+                "TRANSAKSI_DITOLAK", logging.WARNING, aksi="hapus", transaksi_id=id, alasan="saldo minus"
+            )
             flash(
                 f"Transaksi tidak dapat dihapus karena saldo akan menjadi minus "
                 f"({format_rupiah(saldo_akhir)}).",
@@ -571,6 +645,7 @@ def hapus_transaksi(id):
         )
         connection.commit()
 
+    catat_keamanan("TRANSAKSI_DIHAPUS", transaksi_id=id)
     flash("Transaksi berhasil dihapus.", "success")
     return redirect(url_for("riwayat"))
 
