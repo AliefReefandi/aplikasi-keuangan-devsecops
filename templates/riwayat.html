@@ -1,61 +1,78 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riwayat Transaksi</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% from "_macros.html" import tombol_kembali %}
 
-    <h1>Riwayat Transaksi</h1>
+{% block title %}Riwayat Transaksi{% endblock %}
 
-    <a href="/transaksi">+ Tambah Transaksi</a>
+{% block content %}
+{{ tombol_kembali(url_for('dashboard')) }}
 
-    <br><br>
+<div class="page-header">
+    <div>
+        <h1>Riwayat Transaksi</h1>
+        <p class="muted">Semua pemasukan dan pengeluaran yang pernah Anda catat.</p>
+    </div>
+    <a href="{{ url_for('transaksi') }}" class="btn btn-primary">+ Tambah Transaksi</a>
+</div>
 
-    <table border="1" cellpadding="8" cellspacing="0">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Jenis</th>
-                <th>Nominal</th>
-                <th>Kategori</th>
-                <th>Deskripsi</th>
-                <th>Tanggal</th>
-                <th>Aksi</th>
-            </tr>
-        </thead>
+<nav class="tabs" aria-label="Filter jenis transaksi">
+    <a href="{{ url_for('riwayat') }}" class="tab {% if not filter_jenis %}active{% endif %}">Semua</a>
+    <a href="{{ url_for('riwayat', jenis='pemasukan') }}"
+       class="tab {% if filter_jenis == 'pemasukan' %}active{% endif %}">Pemasukan</a>
+    <a href="{{ url_for('riwayat', jenis='pengeluaran') }}"
+       class="tab {% if filter_jenis == 'pengeluaran' %}active{% endif %}">Pengeluaran</a>
+</nav>
 
-        <tbody>
-            {% for transaksi in transaksi_list %}
-            <tr>
-                <td>{{ transaksi.id }}</td>
-                <td>{{ transaksi.jenis }}</td>
-                <td>Rp {{ "{:,.0f}".format(transaksi.nominal).replace(",", ".") }}</td>
-                <td>{{ transaksi.kategori }}</td>
-                <td>{{ transaksi.deskripsi }}</td>
-                <td>{{ transaksi.tanggal }}</td>
-
-                <td>
-                    <a href="{{ url_for('edit_transaksi', id=transaksi.id) }}">
-                        Edit
-                    </a>
-
-                    <form
-                        method="POST"
-                        action="{{ url_for('hapus_transaksi', id=transaksi.id) }}"
-                        style="display:inline;"
-                    >
-                        <button type="submit"
-                                onclick="return confirm('Yakin ingin menghapus transaksi ini?');">
-                            Hapus
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-</body>
-</html>
+<div class="card card-flush">
+    {% if transaksi_list %}
+    <div class="table-wrapper">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Kategori</th>
+                    <th>Deskripsi</th>
+                    <th>Jenis</th>
+                    <th class="text-right">Nominal</th>
+                    <th class="text-right">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaksi in transaksi_list %}
+                <tr class="{% if transaksi.id == transaksi_baru %}row-highlight{% endif %}">
+                    <td class="nowrap">{{ transaksi.tanggal | tanggal }}</td>
+                    <td><strong>{{ transaksi.kategori }}</strong></td>
+                    <td class="muted">{{ transaksi.deskripsi or "-" }}</td>
+                    <td>
+                        <span class="badge badge-{{ transaksi.jenis }}">
+                            {{ transaksi.jenis | capitalize }}
+                        </span>
+                    </td>
+                    <td class="text-right nowrap amount-{{ transaksi.jenis }}">
+                        {% if transaksi.jenis == "pemasukan" %}+{% else %}&minus;{% endif %}
+                        {{ transaksi.nominal | rupiah }}
+                    </td>
+                    <td class="text-right nowrap">
+                        <a href="{{ url_for('edit_transaksi', id=transaksi.id) }}"
+                           class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" action="{{ url_for('hapus_transaksi', id=transaksi.id) }}"
+                              class="inline-form"
+                              data-confirm="Hapus transaksi {{ transaksi.kategori }} sebesar {{ transaksi.nominal | rupiah }}?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger-ghost btn-sm">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>
+            {% if filter_jenis %}Belum ada transaksi {{ filter_jenis }}.{% else %}Belum ada transaksi yang dicatat.{% endif %}
+        </p>
+        <a href="{{ url_for('transaksi') }}" class="btn btn-secondary btn-sm">Tambah transaksi</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

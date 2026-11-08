@@ -1,28 +1,84 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Keuangan</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% from "_macros.html" import baris_transaksi %}
 
-    <h1>Dashboard Keuangan</h1>
+{% block title %}Dashboard{% endblock %}
 
-    <h2>Total Pemasukan</h2>
-    <p>Rp {{ "{:,.0f}".format(total_pemasukan).replace(",", ".") }}</p>
+{% block content %}
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Dashboard Keuangan</p>
+        <h1>Halo, {{ session.username }} 👋</h1>
+        <p class="muted">Berikut ringkasan kondisi keuangan Anda.</p>
+    </div>
+    <a href="{{ url_for('transaksi') }}" class="btn btn-primary">+ Tambah Transaksi</a>
+</div>
 
-    <h2>Total Pengeluaran</h2>
-    <p>Rp {{ "{:,.0f}".format(total_pengeluaran).replace(",", ".") }}</p>
+<section class="stats">
+    <article class="stat-card stat-saldo">
+        <span class="stat-label">Saldo Saat Ini</span>
+        <span class="stat-value">{{ saldo | rupiah }}</span>
+        <span class="stat-note">Total pemasukan dikurangi pengeluaran</span>
+    </article>
 
-    <h2>Saldo</h2>
-    <p>Rp {{ "{:,.0f}".format(saldo).replace(",", ".") }}</p>
+    <article class="stat-card">
+        <div class="stat-head">
+            <span class="stat-label">Total Pemasukan</span>
+            <span class="stat-badge badge-pemasukan">&#8595;</span>
+        </div>
+        <span class="stat-value amount-pemasukan">{{ total_pemasukan | rupiah }}</span>
+    </article>
 
-    <br>
+    <article class="stat-card">
+        <div class="stat-head">
+            <span class="stat-label">Total Pengeluaran</span>
+            <span class="stat-badge badge-pengeluaran">&#8593;</span>
+        </div>
+        <span class="stat-value amount-pengeluaran">{{ total_pengeluaran | rupiah }}</span>
+    </article>
+</section>
 
-    <a href="/transaksi">+ Tambah Transaksi</a>
-    <br><br>
-    <a href="/riwayat">Lihat Riwayat Transaksi</a>
+<section class="grid-2">
+    <article class="card">
+        <h2 class="card-title">Rasio Pengeluaran</h2>
+        {% if total_pemasukan > 0 %}
+        <p class="ratio-value">{{ rasio_pengeluaran }}%</p>
+        <div class="progress" role="progressbar" aria-valuenow="{{ rasio_pengeluaran }}"
+             aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar {% if rasio_pengeluaran >= 80 %}progress-danger{% elif rasio_pengeluaran >= 50 %}progress-warning{% endif %}"
+                 data-width="{{ rasio_pengeluaran }}"></div>
+        </div>
+        <p class="muted small">
+            {% if rasio_pengeluaran >= 80 %}
+                Pengeluaran Anda hampir menghabiskan seluruh pemasukan. Pertimbangkan untuk berhemat.
+            {% elif rasio_pengeluaran >= 50 %}
+                Lebih dari separuh pemasukan sudah terpakai.
+            {% else %}
+                Keuangan Anda sehat. Pertahankan!
+            {% endif %}
+        </p>
+        {% else %}
+        <p class="muted">Belum ada pemasukan. Tambahkan pemasukan untuk melihat rasio pengeluaran.</p>
+        {% endif %}
+    </article>
 
-</body>
-</html>
+    <article class="card">
+        <div class="card-header">
+            <h2 class="card-title">Transaksi Terbaru</h2>
+            <a href="{{ url_for('riwayat') }}" class="link">Lihat semua &rarr;</a>
+        </div>
+
+        {% if transaksi_terbaru %}
+        <ul class="tx-list">
+            {% for transaksi in transaksi_terbaru %}
+            <li class="tx-item">{{ baris_transaksi(transaksi) }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state">
+            <p>Belum ada transaksi.</p>
+            <a href="{{ url_for('transaksi') }}" class="btn btn-secondary btn-sm">Catat transaksi pertama</a>
+        </div>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}
