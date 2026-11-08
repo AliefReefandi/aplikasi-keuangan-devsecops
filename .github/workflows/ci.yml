@@ -1,0 +1,63 @@
+
+name: DevSecOps CI Pipeline
+
+on:
+  push:
+    branches:
+      - feature-step6-10
+      - feature-step1-5
+  pull_request:
+    branches:
+      - feature-step6-10
+      - feature-step1-5
+
+permissions:
+  contents: read
+
+jobs:
+  security-and-test:
+    name: Security Scan and Automated Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit pip-audit pytest
+
+      - name: Bandit Security Scan
+        run: |
+          bandit -r app.py database.py init_db.py
+
+      - name: Dependency Vulnerability Scan
+        run: |
+          pip-audit -r requirements.txt
+
+      - name: Run Automated Tests
+        env:
+          SECRET_KEY: ci-test-secret-key
+        run: |
+          python -m pytest -v
+
+  docker-build:
+    name: Docker Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build -t finance-tracker:ci .
+
+          
