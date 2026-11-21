@@ -67,7 +67,7 @@ jobs:
           python -m pytest -v
 
   docker-build:
-    name: Docker Build Verification
+    name: Docker Build and Image Security Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -77,3 +77,13 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build -t finance-tracker:ci .
+
+      - name: Trivy Container Image Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: finance-tracker:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
