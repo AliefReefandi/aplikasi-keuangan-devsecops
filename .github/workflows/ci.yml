@@ -102,4 +102,4 @@ jobs:
 
       - name: Checkov Docker Compose Scan
         run: |
-          checkov -f docker-compose.yml --framework docker_compose
+          checkov -f docker-compose.yml --framework yaml
