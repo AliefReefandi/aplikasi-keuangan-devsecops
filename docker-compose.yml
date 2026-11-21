@@ -1,3 +1,4 @@
+
 services:
   db:
     image: mysql:8.0
@@ -9,27 +10,65 @@ services:
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - localhost
+        - -p${MYSQL_ROOT_PASSWORD}
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 30s
 
-  app:
+  db-init:
     build: .
-    restart: unless-stopped
-    env_file: .env
+    restart: "no"
+    command: ["python", "init_db.py"]
     environment:
       DB_HOST: db
       DB_PORT: 3306
-      DB_USER: ${MYSQL_APP_USER}
-      DB_PASSWORD: ${MYSQL_APP_PASSWORD}
-      FLASK_DEBUG: "false"
-    ports:
-      - "5000:5000"
+      DB_NAME: ${DB_NAME}
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks:
+      - backend
     depends_on:
       db:
         condition: service_healthy
 
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      FLASK_DEBUG: "false"
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${MYSQL_APP_USER}
+      DB_PASSWORD: ${MYSQL_APP_PASSWORD}
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
 volumes:
   db_data:
+
+networks:
+  frontend:
+    driver: bridge
+
+  backend:
+    driver: bridge
+    internal: true
