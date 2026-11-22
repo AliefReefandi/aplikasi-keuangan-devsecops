@@ -42,7 +42,7 @@ services:
         condition: service_healthy
 
   app:
-    build: .
+    image: ${APP_IMAGE:-catatuang-app:v1.0.0-security-monitoring}
     restart: unless-stopped
     environment:
       SECRET_KEY: ${SECRET_KEY}
@@ -63,6 +63,7 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+
 
   loki-init:
     image: busybox:1.36
