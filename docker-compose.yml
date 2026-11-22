@@ -55,6 +55,8 @@ services:
       DB_PASSWORD: ${MYSQL_APP_PASSWORD}
     ports:
       - "127.0.0.1:5000:5000"
+    volumes:
+      - app_logs:/app/logs
     networks:
       - frontend
       - backend
@@ -62,13 +64,82 @@ services:
       db-init:
         condition: service_completed_successfully
 
+  loki-init:
+    image: busybox:1.36
+    user: "0"
+    command:
+      - sh
+      - -c
+      - mkdir -p /loki/chunks /loki/rules && chown -R 10001:10001 /loki
+    volumes:
+      - loki_data:/loki
+    restart: "no"
+
+  loki:
+    image: grafana/loki:3.7.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - monitoring
+    depends_on:
+      loki-init:
+        condition: service_completed_successfully
+
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./monitoring/config.alloy:/etc/alloy/config.alloy:ro
+      - app_logs:/var/log/app:ro
+      - alloy_data:/var/lib/alloy/data
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: smtp.gmail.com:587
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER}
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
+      GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_USER}
+      GF_SMTP_FROM_NAME: Grafana CatatUang
+      GF_SMTP_STARTTLS_POLICY: Mandatory
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - frontend
+      - monitoring
+    depends_on:
+      - loki
 volumes:
   db_data:
+  app_logs:
+  loki_data:
+  alloy_data:
+  grafana_data:
 
 networks:
   frontend:
     driver: bridge
 
   backend:
+    driver: bridge
+    internal: true
+
+  monitoring:
     driver: bridge
     internal: true
