@@ -1,5 +1,25 @@
+# Python
 venv/
 __pycache__/
-.env
 *.pyc
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
 logs/
+*.log
+
+# Local security reports
+zap-report.html
