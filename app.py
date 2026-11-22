@@ -254,20 +254,34 @@ def cek_csrf():
     return None
 
 
+
 @app.after_request
 def tambah_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "same-origin"
+
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; img-src 'self' data:; "
         "frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
     )
+
+    # Perlindungan tambahan Cross-Origin
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+
+    # Membatasi akses fitur browser yang tidak digunakan aplikasi
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=()"
+    )
+
     if request.endpoint != "static":
-        # Data keuangan tidak boleh tersimpan di cache browser,
-        # sehingga tidak bisa dilihat lagi dengan tombol back setelah logout.
+        # Mencegah data keuangan tersimpan di cache browser
         response.headers["Cache-Control"] = "no-store"
+
     return response
+
 
 
 @app.errorhandler(404)

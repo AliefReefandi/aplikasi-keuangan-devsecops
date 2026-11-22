@@ -6,15 +6,33 @@ on:
     branches:
       - feature-step6-10
       - feature-step1-5
+      - feature-security-hardening
+
   pull_request:
     branches:
       - feature-step6-10
       - feature-step1-5
+      - feature-security-hardening
 
 permissions:
   contents: read
 
 jobs:
+  secrets-scan:
+    name: Gitleaks Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   security-and-test:
     name: Security Scan and Automated Testing
     runs-on: ubuntu-latest
@@ -49,7 +67,7 @@ jobs:
           python -m pytest -v
 
   docker-build:
-    name: Docker Build Verification
+    name: Docker Build and Image Security Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -60,4 +78,28 @@ jobs:
         run: |
           docker build -t finance-tracker:ci .
 
-          
+      - name: Trivy Container Image Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: finance-tracker:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+  
+  iac-security:
+    name: Infrastructure as Code Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Checkov
+        run: |
+          pip install checkov
+
+      - name: Checkov Docker Compose Scan
+        run: |
+          checkov -f docker-compose.yml --framework yaml

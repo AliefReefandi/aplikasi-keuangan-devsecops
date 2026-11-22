@@ -1,4 +1,10 @@
-FROM python:3.14-slim
+
+FROM python:3.12-slim
+
+# Update OS packages untuk memperbaiki vulnerability
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -13,10 +19,10 @@ COPY . .
 RUN useradd --create-home appuser \
     && mkdir -p logs \
     && chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "python init_db.py && gunicorn --bind 0.0.0.0:5000 --workers 1 --threads 4 app:app"]
-
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "app:app"]
 
