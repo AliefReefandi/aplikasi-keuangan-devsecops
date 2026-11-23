@@ -23,3 +23,7 @@ logs/
 
 # Local security reports
 zap-report.html
+
+# Local development and security testing
+venv-checkov/
+console/results_json.json

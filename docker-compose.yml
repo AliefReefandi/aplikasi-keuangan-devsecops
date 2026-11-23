@@ -13,13 +13,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test:
-        - CMD
-        - mysqladmin
-        - ping
-        - -h
-        - localhost
-        - -p${MYSQL_ROOT_PASSWORD}
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,10 +34,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
   app:
     image: ${APP_IMAGE:-catatuang-app:v1.0.0-security-monitoring}
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 100
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       SECRET_KEY: ${SECRET_KEY}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
@@ -63,8 +63,6 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
-
-
   loki-init:
     image: busybox:1.36
     user: "0"
@@ -75,7 +73,6 @@ services:
     volumes:
       - loki_data:/loki
     restart: "no"
-
   loki:
     image: grafana/loki:3.7.0
     restart: unless-stopped
@@ -88,9 +85,8 @@ services:
     depends_on:
       loki-init:
         condition: service_completed_successfully
-
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy@sha256:9acc2529bc1edb7f5b2bd801dd8334ebc80c158e3a9e5526ecd7c9a273d43189
     restart: unless-stopped
     command:
       - run
@@ -107,7 +103,7 @@ services:
       - loki
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     restart: unless-stopped
     environment:
       GF_SMTP_ENABLED: "true"
