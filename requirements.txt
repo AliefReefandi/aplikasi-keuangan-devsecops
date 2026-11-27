@@ -18,3 +18,5 @@ wrapt==2.5.2
 setuptools==84.1.0
 wheel==0.46.2
 jaraco.context==6.1.0
+prometheus-flask-exporter==0.23.2
+prometheus_client==0.26.0

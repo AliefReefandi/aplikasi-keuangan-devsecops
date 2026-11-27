@@ -1,0 +1,26 @@
+# Contact point email dan notification policy.
+# Alamat penerima diambil dari environment variable GRAFANA_ALERT_EMAIL
+# (diisi lewat .env -> docker-compose.yml), tidak ditulis langsung di sini.
+# Pengiriman email memakai SMTP yang dikonfigurasi lewat GF_SMTP_* di service grafana.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: email-catatuang
+    receivers:
+      - uid: email-catatuang
+        type: email
+        settings:
+          addresses: ${GRAFANA_ALERT_EMAIL}
+          singleEmail: true
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: email-catatuang
+    group_by:
+      - grafana_folder
+      - alertname
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

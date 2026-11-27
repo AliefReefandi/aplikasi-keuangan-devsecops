@@ -7,12 +7,15 @@ on:
       - feature-step6-10
       - feature-step1-5
       - feature-security-hardening
+      - APP_FIX
+      - feature-monitoring
 
   pull_request:
     branches:
       - feature-step6-10
       - feature-step1-5
       - feature-security-hardening
+      - APP_FIX
 
 permissions:
   contents: read

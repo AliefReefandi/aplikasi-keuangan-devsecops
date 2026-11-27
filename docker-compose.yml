@@ -13,7 +13,9 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      # 127.0.0.1 (TCP), bukan localhost (socket): socket sudah aktif sebelum
+      # MySQL membuka port 3306, sehingga db-init bisa konek terlalu cepat.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -53,13 +55,18 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${MYSQL_APP_USER}
       DB_PASSWORD: ${MYSQL_APP_PASSWORD}
+      # Port metrics Prometheus, hanya di jaringan internal (tidak di-publish ke host).
+      METRICS_PORT: "9200"
     ports:
       - "127.0.0.1:5000:5000"
+    expose:
+      - "9200"
     volumes:
       - app_logs:/app/logs
     networks:
       - frontend
       - backend
+      - monitoring
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -102,6 +109,23 @@ services:
     depends_on:
       - loki
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+
   grafana:
     image: grafana/grafana@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     restart: unless-stopped
@@ -113,21 +137,30 @@ services:
       GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_USER}
       GF_SMTP_FROM_NAME: Grafana CatatUang
       GF_SMTP_STARTTLS_POLICY: Mandatory
+      # Penerima alert email; dibaca oleh provisioning/alerting/contact-points.yml.
+      # Default example.com hanya agar provisioning tidak gagal jika belum diisi di .env.
+      GRAFANA_ALERT_EMAIL: ${GRAFANA_ALERT_EMAIL:-alert@example.com}
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
     networks:
       - frontend
       - monitoring
     depends_on:
       - loki
+      - prometheus
 volumes:
   db_data:
   app_logs:
   loki_data:
   alloy_data:
   grafana_data:
+  prometheus_data:
 
 networks:
   frontend:

@@ -1,0 +1,118 @@
+# Alert rules CatatUang (Grafana-managed), dievaluasi setiap 30 detik.
+# Setiap rule: query A ke Prometheus, lalu ekspresi C (threshold) sebagai kondisi.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: catatuang-alerts
+    folder: CatatUang
+    interval: 30s
+    rules:
+      - uid: catatuang-app-down
+        title: Aplikasi CatatUang Down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              # "or vector(0)": jika target hilang sama sekali, tetap dianggap down.
+              expr: max(up{job="catatuang-app"}) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+        for: 1m
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+          service: catatuang-app
+        annotations:
+          summary: Aplikasi CatatUang tidak bisa dijangkau Prometheus
+          description: up{job="catatuang-app"} bernilai 0 selama lebih dari 1 menit. Periksa container app (docker compose ps / logs app).
+
+      - uid: catatuang-bruteforce
+        title: Dugaan Brute Force Login
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(increase(catatuang_security_events_total{job="catatuang-app", event=~"LOGIN_GAGAL|RATE_LIMIT"}[5m])) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [10]
+        # Pending selama 30 detik dulu sebelum Firing, untuk menyaring lonjakan sesaat.
+        for: 30s
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+          service: catatuang-app
+          category: security
+        annotations:
+          summary: Banyak login gagal dan rate limit dalam 5 menit terakhir
+          description: Jumlah LOGIN_GAGAL + RATE_LIMIT dalam 5 menit lebih dari 10. Periksa panel "Log Keamanan" untuk IP dan username yang dicoba.
+
+      - uid: catatuang-high-5xx
+        title: Error 5xx Tinggi
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              # Rasio 5xx terhadap seluruh request; clamp_min mencegah pembagian dengan nol saat tidak ada trafik.
+              expr: (sum(rate(flask_http_request_total{job="catatuang-app", status=~"5.."}[5m])) or vector(0)) / clamp_min(sum(rate(flask_http_request_total{job="catatuang-app"}[5m])), 1e-9)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.05]
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: catatuang-app
+        annotations:
+          summary: Lebih dari 5% request berakhir dengan error 5xx
+          description: Rasio response 5xx di atas 5% selama 5 menit. Periksa docker compose logs app dan koneksi database.

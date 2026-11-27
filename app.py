@@ -20,6 +20,8 @@ from flask import (
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from prometheus_client import Counter
+from prometheus_flask_exporter import PrometheusMetrics
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import get_db_connection
@@ -44,6 +46,20 @@ limiter = Limiter(
     get_remote_address,
     app=app,
     storage_uri="memory://",
+)
+# Metrics untuk tahap Monitor (Prometheus).
+# path=None: /metrics TIDAK dibuka di port aplikasi (5000),
+# tapi di port terpisah yang hanya bisa diakses jaringan monitoring.
+metrics = PrometheusMetrics(app, path=None, group_by="endpoint")
+metrics.info("catatuang_app_info", "Informasi aplikasi CatatUang", version="1.0.0")
+
+if os.getenv("METRICS_PORT"):
+    metrics.start_http_server(int(os.getenv("METRICS_PORT")))
+
+SECURITY_EVENTS = Counter(
+    "catatuang_security_events_total",
+    "Jumlah event keamanan aplikasi",
+    ["event", "level"],
 )
 
 # Log keamanan untuk tahap Monitor: login, akses ditolak, perubahan data.
@@ -117,6 +133,7 @@ def catat_keamanan(event, level=logging.INFO, **detail):
         f"{kunci}={KARAKTER_KONTROL.sub('_', str(nilai))}" for kunci, nilai in info.items()
     )
     security_logger.log(level, "%s %s", event, teks)
+    SECURITY_EVENTS.labels(event=event, level=logging.getLevelName(level)).inc()
 
 
 app.jinja_env.filters["rupiah"] = format_rupiah
