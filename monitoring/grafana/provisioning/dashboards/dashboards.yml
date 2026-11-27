@@ -1,0 +1,14 @@
+# Provider dashboard: Grafana memuat semua file JSON dari folder ini saat start.
+apiVersion: 1
+
+providers:
+  - name: catatuang
+    orgId: 1
+    folder: CatatUang
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false
